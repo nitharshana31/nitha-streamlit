@@ -8,7 +8,11 @@ from sklearn.metrics import classification_report, confusion_matrix
 # --------------------------
 # Load dataset
 # --------------------------
-df = pd.read_csv("../data/train.csv")
+
+
+url = "https://raw.githubusercontent.com/datasciencedojo/datasets/master/titanic.csv"
+df = pd.read_csv(url)
+
 
 # Preprocess dataset
 df['Sex'] = df['Sex'].map({'male':0, 'female':1})
