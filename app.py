@@ -1,158 +1,144 @@
 import streamlit as st
 import pandas as pd
 import pickle
-import matplotlib.pyplot as plt
 import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.metrics import classification_report, confusion_matrix
 
-# --------------------
-# Load model and data
-# --------------------
-@st.cache_data
-def load_data():
-    return pd.read_csv("data/train.csv")
+# --------------------------
+# Load dataset
+# --------------------------
+df = pd.read_csv("data/train.csv")
 
-@st.cache_resource
-def load_model():
-    with open('model.pkl', 'rb') as file:
-        return pickle.load(file)
+# Preprocess dataset
+df['Sex'] = df['Sex'].map({'male':0, 'female':1})
+df['Embarked'].fillna('S', inplace=True)
+df = pd.get_dummies(df, columns=['Embarked'], drop_first=True)
+df['Age'].fillna(df['Age'].median(), inplace=True)
+df['Fare'].fillna(df['Fare'].median(), inplace=True)
 
-df = load_data()
-model = load_model()
+# Features and target for model performance
+feature_cols = ['Pclass','Sex','Age','SibSp','Parch','Fare','Embarked_Q','Embarked_S']
 
-# --------------------
-# Sidebar Navigation
-# --------------------
-st.sidebar.title("Navigation")
-menu = st.sidebar.radio("Go to:", ["Home", "Data Exploration", "Visualizations", "Model Prediction", "Model Performance", "About"])
+# --------------------------
+# Load trained model
+# --------------------------
+with open("model.pkl", "rb") as file:
+    model = pickle.load(file)
 
-# --------------------
-# Home Section
-# --------------------
-if menu == "Home":
+# --------------------------
+# Sidebar menu
+# --------------------------
+menu = ["Home", "About", "Data", "Visualisations", "Predict", "Model Performance"]
+choice = st.sidebar.selectbox("Menu", menu)
+
+# --------------------------
+# Home page
+# --------------------------
+if choice == "Home":
     st.title("Titanic Survival Prediction App")
-    st.markdown("""
-    This app predicts whether a passenger survived the Titanic disaster using a trained machine learning model.
-    
-    *Features:*
-    - Explore the Titanic dataset
-    - View interactive charts
-    - Input passenger details for prediction
-    - See model performance metrics
+    st.write("""
+    This app predicts whether a passenger survived the Titanic disaster based on their features.
+    Use the sidebar to explore data, visualisations, make predictions, and view model performance.
     """)
 
-# --------------------
-# Data Exploration
-# --------------------
-elif menu == "Data Exploration":
-    st.header("Dataset Overview")
-    st.write("*Shape:*", df.shape)
-    st.write("*Columns:*", list(df.columns))
-    st.dataframe(df.head())
+# --------------------------
+# About page
+# --------------------------
+elif choice == "About":
+    st.title("About This App")
+    st.write("""
+    **Titanic Survival Prediction App**  
+    This project predicts passenger survival on the Titanic using a Random Forest Classifier.  
+    It demonstrates an end-to-end Machine Learning pipeline including data preprocessing, model training, evaluation, and deployment via Streamlit.  
 
-    st.subheader("Data Types")
+    **Developer Contact:**  
+    Email: nitharshana1996@gmail.com  
+    GitHub Repository: [https://github.com/nitharshana31/ML_STREAMLIT_APP](https://github.com/nitharshana31/ML_STREAMLIT-App)  
+    """)
+
+# --------------------------
+# Data page
+# --------------------------
+elif choice == "Data":
+    st.subheader("Dataset Overview")
+    st.write(df.head())
+    st.write("Shape:", df.shape)
+    st.write("Data Types:")
     st.write(df.dtypes)
-
-    st.subheader("Missing Values")
+    st.write("Missing Values:")
     st.write(df.isnull().sum())
 
-    st.subheader("Filter Data")
-    pclass_filter = st.selectbox("Select Pclass to view", options=[1, 2, 3])
-    st.dataframe(df[df['Pclass'] == pclass_filter].head())
+# --------------------------
+# Visualisations
+# --------------------------
+elif choice == "Visualisations":
+    st.subheader("Visualisations")
 
-# --------------------
-# Visualizations
-# --------------------
-elif menu == "Visualizations":
-    st.header("Visualizations")
+    # Count of survivors
+    fig1, ax1 = plt.subplots()
+    sns.countplot(x='Survived', data=df, ax=ax1)
+    ax1.set_xticklabels(['Did Not Survive', 'Survived'])
+    st.pyplot(fig1)
 
-    st.subheader("Survival Count")
-    fig, ax = plt.subplots()
-    sns.countplot(x='Survived', data=df, ax=ax)
-    st.pyplot(fig)
+    # Correlation heatmap
+    fig2, ax2 = plt.subplots(figsize=(8,6))
+    sns.heatmap(df[feature_cols + ['Survived']].corr(), annot=True, cmap='coolwarm', ax=ax2)
+    st.pyplot(fig2)
 
-    st.subheader("Age Distribution")
-    fig, ax = plt.subplots()
-    sns.histplot(df['Age'].dropna(), kde=True, ax=ax)
-    st.pyplot(fig)
+    # Survival by Passenger Class
+    fig3, ax3 = plt.subplots()
+    sns.countplot(x='Pclass', hue='Survived', data=df, ax=ax3)
+    ax3.set_xticklabels(['1st Class','2nd Class','3rd Class'])
+    st.pyplot(fig3)
 
-    st.subheader("Survival by Pclass")
-    fig, ax = plt.subplots()
-    sns.countplot(x='Pclass', hue='Survived', data=df, ax=ax)
-    st.pyplot(fig)
+# --------------------------
+# Prediction
+# --------------------------
+elif choice == "Predict":
+    st.subheader("Enter Passenger Details for Prediction")
 
-# --------------------
-# Model Prediction
-# --------------------
-elif menu == "Model Prediction":
-    st.header("Predict Passenger Survival")
+    # Input widgets
+    Pclass = st.selectbox("Passenger Class (1=1st,2=2nd,3=3rd)", [1,2,3])
+    Sex = st.selectbox("Sex", ["male","female"])
+    Age = st.number_input("Age", min_value=0, max_value=100, value=30)
+    SibSp = st.number_input("Siblings/Spouses Aboard", 0, 10, 0)
+    Parch = st.number_input("Parents/Children Aboard", 0, 10, 0)
+    Fare = st.number_input("Fare", 0.0, 600.0, 32.2)
+    Embarked = st.selectbox("Port of Embarkation", ["C","Q","S"])
 
-    pclass = st.selectbox('Pclass', [1, 2, 3])
-    sex = st.selectbox('Sex', ['male', 'female'])
-    age = st.slider('Age', 0, 80, 25)
-    sibsp = st.number_input('Siblings/Spouses Aboard', 0, 10, 0)
-    parch = st.number_input('Parents/Children Aboard', 0, 10, 0)
-    fare = st.number_input('Fare', 0.0, 600.0, 32.0)
-    embarked_Q = st.selectbox('Embarked Q', [0, 1])
-    embarked_S = st.selectbox('Embarked S', [0, 1])
-
-    # Convert Sex to numeric
-    sex = 0 if sex == 'male' else 1
-
-    # Create DataFrame for prediction
-    input_df = pd.DataFrame([[pclass, sex, age, sibsp, parch, fare, embarked_Q, embarked_S]],
-                            columns=['Pclass', 'Sex', 'Age', 'SibSp', 'Parch', 'Fare', 'Embarked_Q', 'Embarked_S'])
+    # Convert inputs
+    Sex = 0 if Sex=="male" else 1
+    Embarked_Q = 1 if Embarked=="Q" else 0
+    Embarked_S = 1 if Embarked=="S" else 0
 
     if st.button("Predict"):
+        input_df = pd.DataFrame([[Pclass, Sex, Age, SibSp, Parch, Fare, Embarked_Q, Embarked_S]],
+                                columns=feature_cols)
         prediction = model.predict(input_df)[0]
-        prob = model.predict_proba(input_df)[0][prediction] if hasattr(model, "predict_proba") else None
+        prediction_proba = model.predict_proba(input_df)[0][prediction]*100
 
-        result = "Survived" if prediction == 1 else "Did not survive"
-        st.success(f"Prediction: {result}")
-        if prob is not None:
-            st.info(f"Confidence: {prob:.2f}")
+        st.success(f"Predicted Survival: {'Survived' if prediction==1 else 'Did Not Survive'}")
+        st.info(f"Prediction Confidence: {prediction_proba:.2f}%")
 
-# --------------------
+# --------------------------
 # Model Performance
-# --------------------
-elif menu == "Model Performance":
-    st.header("Model Evaluation")
-    from sklearn.model_selection import train_test_split
-    from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+# --------------------------
+elif choice == "Model Performance":
+    st.subheader("Model Performance Metrics")
+    y_true = df['Survived']
+    y_pred = model.predict(df[feature_cols])
 
-    # Preprocess data like in training
-    df_perf = df.copy()
-    df_perf['Sex'] = df_perf['Sex'].map({'male': 0, 'female': 1})
-    df_perf['Age'].fillna(df_perf['Age'].median(), inplace=True)
-    df_perf['Embarked'].fillna(df_perf['Embarked'].mode()[0], inplace=True)
-    df_perf = pd.get_dummies(df_perf, columns=['Embarked'], drop_first=True)
-    df_perf.drop(columns=['Cabin', 'Name', 'Ticket', 'PassengerId'], inplace=True)
+    st.text("Classification Report")
+    st.text(classification_report(y_true, y_pred))
 
-    X = df_perf.drop('Survived', axis=1)
-    y = df_perf['Survived']
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    st.text("Confusion Matrix")
+    cm = confusion_matrix(y_true, y_pred)
+    st.write(cm)
 
-    y_pred = model.predict(X_test)
-    acc = accuracy_score(y_test, y_pred)
-
-    st.write("*Accuracy:*", acc)
-    st.text("Classification Report:")
-    st.text(classification_report(y_test, y_pred))
-
-    st.subheader("Confusion Matrix")
-    cm = confusion_matrix(y_test, y_pred)
-    fig, ax = plt.subplots()
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax)
-    st.pyplot(fig)
-
-# --------------------
-# About
-# --------------------
-elif menu == "About":
-    st.header("About This App")
-    st.write("""
-    *Developer:* Nitharshana  
-    *Dataset:* Titanic Survival Data  
-    *Framework:* Streamlit  
-    *Description:*  
-    A complete machine learning pipeline from EDA to model deployment on Streamlit Cloud.
-    """)
+    # Heatmap for confusion matrix
+    fig_cm, ax_cm = plt.subplots()
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax_cm)
+    ax_cm.set_xlabel("Predicted")
+    ax_cm.set_ylabel("Actual")
+    st.pyplot(fig_cm)
