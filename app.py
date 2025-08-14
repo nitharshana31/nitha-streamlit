@@ -43,7 +43,8 @@ if choice == "🏠 Home":
     Use the sidebar to explore data, visualisations, make predictions, and view model performance.
     """)
     st.image("https://upload.wikimedia.org/wikipedia/commons/f/fd/RMS_Titanic_3.jpg",
-             caption="RMS Titanic", use_column_width=True)
+         caption="RMS Titanic", use_container_width=True)
+
 
 # --------------------------
 # Predict page
@@ -142,6 +143,6 @@ elif choice == "ℹ️ About":
     It demonstrates an end-to-end Machine Learning pipeline including data preprocessing, model training, evaluation, and deployment via Streamlit.  
 
     **Developer Contact:**  
-    Email: yourname@example.com  
-    GitHub Repository: [https://github.com/YourUsername/Titanic-App](https://github.com/YourUsername/Titanic-App)  
+    Email: nitharshana1996@gmail.com  
+    GitHub Repository: [https://github.com/nitharshana31/ML_STREAMLIT-App](https://github.com/nitharshana31/ML_STREAMLIT-App)  
     """)
