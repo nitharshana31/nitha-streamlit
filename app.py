@@ -27,8 +27,9 @@ with open("model.pkl", "rb") as file:
     model = pickle.load(file)
 
 
-menu = ["Home", "About", "Data", "Visualisations", "Predict", "Model Performance"]
-choice = st.sidebar.selectbox("Menu", menu)
+menu = ["🏠 Home", "🔮 Predict Survival", "📊 Explore Data", "📈 Visualise Data", "📉 Model Metrics", "ℹ️ About"]
+choice = st.sidebar.radio("Navigation", menu)
+
 
 
 if choice == "Home":
@@ -37,6 +38,8 @@ if choice == "Home":
     This app predicts whether a passenger survived the Titanic disaster based on their features.
     Use the sidebar to explore data, visualisations, make predictions, and view model performance.
     """)
+    st.image("https://upload.wikimedia.org/wikipedia/commons/f/fd/RMS_Titanic_3.jpg", 
+             caption="RMS Titanic", use_column_width=True)
 
 elif choice == "About":
     st.title("About This App")
